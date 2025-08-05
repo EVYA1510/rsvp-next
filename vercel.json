@@ -1,0 +1,27 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/submit",
+      "destination": "https://script.google.com/macros/s/AKfycbzu3VBXivLEvFX2iV_a4Mb1Hp0733lazmMMczLhK1dsjL2mr0AC7Uqq89FLqugE5gotEg/exec"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization"
+        }
+      ]
+    }
+  ]
+} 

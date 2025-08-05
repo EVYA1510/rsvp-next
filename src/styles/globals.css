@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Hebrew RTL Defaults */
+html {
+  font-family: "Inter", sans-serif;
+  direction: rtl;
+}
+
+body {
+  direction: rtl;
+  background: linear-gradient(135deg, #fdf2f8 0%, #e0f2fe 100%);
+  min-height: 100vh;
+  overflow-x: hidden;
+  color: #111827;
+  font-family: "Inter", sans-serif;
+  line-height: 1.6;
+}
+
+/* Global Transitions */
+* {
+  transition: all 0.2s ease-in-out;
+}
+
+/* RTL Text Alignment */
+[dir="rtl"] {
+  text-align: right;
+}
+
+/* Interactive Elements */
+button,
+a,
+input,
+textarea {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Focus States */
+button:focus,
+a:focus,
+input:focus,
+textarea:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
