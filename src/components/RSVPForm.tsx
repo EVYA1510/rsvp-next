@@ -4,13 +4,6 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import WeddingCard from "./ui/WeddingCard";
 
-interface RSVPFormProps {
-  onSubmissionChange?: (
-    submitted: boolean,
-    status: "confirmed" | "declined"
-  ) => void;
-}
-
 interface RSVPData {
   name: string;
   status: "מגיע" | "לא מגיע";
@@ -19,7 +12,7 @@ interface RSVPData {
   timestamp: string;
 }
 
-export default function RSVPForm({ onSubmissionChange }: RSVPFormProps) {
+export default function RSVPForm() {
   const [name, setName] = useState("");
   const [status, setStatus] = useState<"מגיע" | "לא מגיע">("מגיע");
   const [guests, setGuests] = useState(1);
@@ -117,9 +110,7 @@ export default function RSVPForm({ onSubmissionChange }: RSVPFormProps) {
       setSubmitted(true);
       setSubmitMessage("הפרטים נשלחו בהצלחה! 🎉");
 
-      // Notify parent component about submission
-      const rsvpStatus = status === "מגיע" ? "confirmed" : "declined";
-      onSubmissionChange?.(true, rsvpStatus);
+      // Form submitted successfully
     } catch (error) {
       console.error("Submission error:", error);
       setError(

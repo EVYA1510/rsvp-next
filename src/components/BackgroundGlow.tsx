@@ -14,7 +14,7 @@ export default function BackgroundGlow() {
         transition={{
           duration: 8,
           repeat: Infinity,
-          ease: "easeInOut",
+          ease: "easeInOut" as const,
         }}
       />
       <motion.div
@@ -26,7 +26,7 @@ export default function BackgroundGlow() {
         transition={{
           duration: 10,
           repeat: Infinity,
-          ease: "easeInOut",
+          ease: "easeInOut" as const,
           delay: 2,
         }}
       />

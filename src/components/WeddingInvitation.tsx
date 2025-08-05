@@ -89,7 +89,7 @@ ${typeof window !== "undefined" ? window.location.href : ""}`;
       opacity: [0, 1, 0.8],
       transition: {
         duration: 1.5,
-        ease: "easeOut",
+        ease: "easeOut" as const,
       },
     },
   };
@@ -101,7 +101,7 @@ ${typeof window !== "undefined" ? window.location.href : ""}`;
       y: 0,
       transition: {
         duration: 0.8,
-        ease: "easeOut",
+        ease: "easeOut" as const,
       },
     },
   };

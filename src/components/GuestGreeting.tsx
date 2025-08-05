@@ -33,7 +33,7 @@ export default function GuestGreeting({
       scale: 1,
       transition: {
         duration: 0.6,
-        ease: "easeOut",
+        ease: "easeOut" as const,
       },
     },
     exit: {
@@ -42,7 +42,7 @@ export default function GuestGreeting({
       scale: 0.95,
       transition: {
         duration: 0.3,
-        ease: "easeIn",
+        ease: "easeIn" as const,
       },
     },
   };

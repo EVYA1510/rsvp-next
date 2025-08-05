@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { motion } from "framer-motion";
 import BackgroundGlow from "@/components/BackgroundGlow";
 import WeddingHeader from "@/components/WeddingHeader";
@@ -12,19 +11,6 @@ import RSVPForm from "@/components/RSVPForm";
 import WeddingFooter from "@/components/WeddingFooter";
 
 export default function HomePage() {
-  const [rsvpSubmitted, setRsvpSubmitted] = useState(false);
-  const [rsvpStatus, setRsvpStatus] = useState<"confirmed" | "declined">(
-    "confirmed"
-  );
-
-  const handleRSVPSubmission = (
-    submitted: boolean,
-    status: "confirmed" | "declined"
-  ) => {
-    setRsvpSubmitted(submitted);
-    setRsvpStatus(status);
-  };
-
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -80,7 +66,7 @@ export default function HomePage() {
           </motion.div>
 
           <motion.div variants={itemVariants}>
-            <RSVPForm onSubmissionChange={handleRSVPSubmission} />
+            <RSVPForm />
           </motion.div>
 
           <motion.div variants={itemVariants}>
