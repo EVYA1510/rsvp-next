@@ -146,7 +146,7 @@ ${typeof window !== "undefined" ? window.location.href : ""}`;
             >
               <div className="relative overflow-hidden rounded-2xl shadow-lg border border-white/40 bg-gradient-to-br from-pink-50 to-blue-50 p-4">
                 <Image
-                  src="/invitation.png"
+                  src="/invitation.jpeg"
                   alt="הזמנת החתונה"
                   width={300}
                   height={400}
@@ -275,7 +275,7 @@ ${typeof window !== "undefined" ? window.location.href : ""}`;
               {/* Image */}
               <div className="relative w-full h-full">
                 <Image
-                  src="/invitation.png"
+                  src="/invitation.jpeg"
                   alt="הזמנת החתונה"
                   width={800}
                   height={1000}
