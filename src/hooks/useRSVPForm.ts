@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import toast from "react-hot-toast";
-import { RSVPFormData, safeValidateRSVPForm } from "@/lib/validations";
+import {
+  RSVPFormData,
+  safeValidateRSVPForm,
+  RsvpStatus,
+} from "@/lib/validations";
 import {
   saveRSVPData,
   loadRSVPData,
@@ -37,9 +41,10 @@ export function useRSVPForm(): UseRSVPFormReturn {
   // Form state
   const [formData, setFormDataState] = useState<RSVPFormData>({
     name: "",
-    status: "מגיע",
+    status: "yes",
     guests: 1,
     blessing: "",
+    id: "",
   });
 
   // UI state
@@ -113,9 +118,8 @@ export function useRSVPForm(): UseRSVPFormReturn {
         // Ensure we don't lose the URL name if it exists
         const finalName =
           urlName && urlName.trim() ? urlName.trim() : savedData.name || "";
-        const finalStatus = savedData.status || "מגיע";
-        const finalGuests =
-          finalStatus === "לא מגיע" ? 0 : savedData.guests || 1;
+        const finalStatus = (savedData.status as RsvpStatus) || "yes";
+        const finalGuests = finalStatus === "no" ? 0 : savedData.guests || 1;
 
         console.log("Setting form data:", {
           name: finalName,
@@ -129,6 +133,7 @@ export function useRSVPForm(): UseRSVPFormReturn {
           status: finalStatus,
           guests: finalGuests,
           blessing: savedData.blessing || "",
+          id: id,
         });
 
         // Mark as initialized
@@ -159,10 +164,10 @@ export function useRSVPForm(): UseRSVPFormReturn {
     initializeForm();
   }, [checkPreviousRSVP]);
 
-  // Auto-set guests to 0 when status is "לא מגיע"
+  // Auto-set guests to 0 when status is "no"
   useEffect(() => {
-    if (formData.status === "לא מגיע" && formData.guests > 0) {
-      console.log("Auto-setting guests to 0 for status 'לא מגיע'");
+    if (formData.status === "no" && formData.guests > 0) {
+      console.log("Auto-setting guests to 0 for status 'no'");
       setFormDataState((prev) => ({ ...prev, guests: 0 }));
     }
   }, [formData.status]);
@@ -215,6 +220,22 @@ export function useRSVPForm(): UseRSVPFormReturn {
   // Validation function
   const validateForm = useCallback((): boolean => {
     console.log("Validating form data:", formData);
+
+    // וולידציה נוספת: אם הסטטוס הוא "no", מספר האורחים חייב להיות 0
+    if (formData.status === "no" && formData.guests !== 0) {
+      console.log("Auto-correcting guests count for 'no' status");
+      setFormDataState((prev) => ({ ...prev, guests: 0 }));
+    }
+
+    // וולידציה נוספת: אם הסטטוס הוא "maybe" או "yes", מספר האורחים חייב להיות לפחות 1
+    if (
+      (formData.status === "maybe" || formData.status === "yes") &&
+      formData.guests < 1
+    ) {
+      console.log("Auto-correcting guests count for 'maybe'/'yes' status");
+      setFormDataState((prev) => ({ ...prev, guests: 1 }));
+    }
+
     const validation = safeValidateRSVPForm(formData);
 
     if (!validation.success) {
@@ -260,9 +281,6 @@ export function useRSVPForm(): UseRSVPFormReturn {
       setIsSubmitting(true);
 
       try {
-        const timestamp = new Date().toISOString();
-        const urlParams = new URLSearchParams();
-
         // Ensure we have a valid name - use URL name if form name is empty
         const submissionName = formData.name.trim() || nameFromURL || "";
 
@@ -272,31 +290,37 @@ export function useRSVPForm(): UseRSVPFormReturn {
           return;
         }
 
-        // Ensure all required fields are properly encoded
-        urlParams.append("name", submissionName);
-        urlParams.append("status", formData.status);
-        urlParams.append("guests", formData.guests.toString());
-        urlParams.append("blessing", formData.blessing || "");
-        urlParams.append("timestamp", timestamp);
-        urlParams.append("id", guestId);
+        // וולידציה נוספת: אם הסטטוס הוא "no", מספר האורחים חייב להיות 0
+        // אם הסטטוס הוא "maybe" או "yes", מספר האורחים חייב להיות לפחות 1
+        let finalGuests = formData.guests;
+        if (formData.status === "no") {
+          finalGuests = 0;
+        } else if (formData.status === "maybe" || formData.status === "yes") {
+          finalGuests = Math.max(1, formData.guests);
+        }
 
-        console.log("Submitting RSVP with data:", {
+        const payload = {
           name: submissionName,
           status: formData.status,
-          guests: formData.guests,
+          guests: finalGuests,
           blessing: formData.blessing || "",
-          timestamp,
           id: guestId,
-        });
+        };
 
-        const response = await fetch(`/api/submit?${urlParams.toString()}`, {
+        console.log("Submitting RSVP with data:", payload);
+
+        const response = await fetch("/api/submit", {
           method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
         });
 
         if (response.ok) {
           const result = await response.json();
 
-          if (result.success) {
+          if (result.ok) {
             setSubmitted(true);
             saveRSVPData({ submitted: true });
             toast.success("האישור נשלח בהצלחה! 🎉");
@@ -322,9 +346,10 @@ export function useRSVPForm(): UseRSVPFormReturn {
     setSubmitted(false);
     setFormDataState({
       name: "",
-      status: "מגיע",
+      status: "yes",
       guests: 1,
       blessing: "",
+      id: "",
     });
     setErrors({});
     setSubmitMessage("");

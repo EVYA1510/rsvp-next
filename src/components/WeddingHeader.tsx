@@ -58,7 +58,7 @@ export default function WeddingHeader() {
             </h1>
             <div className="text-2xl text-pink-600 mb-2">💍</div>
           </div>
-          
+
           <p className="text-xl text-gray-700 leading-relaxed max-w-2xl mx-auto">
             נשמח לראותכם ביום הגדול שלנו
           </p>
@@ -87,7 +87,7 @@ export default function WeddingHeader() {
           }}
         />
       )}
-      
+
       <WeddingCard variant="gradient">
         <div className="text-center">
           <div className="mb-6">
@@ -96,7 +96,7 @@ export default function WeddingHeader() {
             </h1>
             <div className="text-2xl text-pink-600 mb-2">💍</div>
           </div>
-          
+
           <p className="text-xl text-gray-700 leading-relaxed max-w-2xl mx-auto">
             נשמח לראותכם ביום הגדול שלנו
           </p>
@@ -104,4 +104,4 @@ export default function WeddingHeader() {
       </WeddingCard>
     </>
   );
-} 
+}

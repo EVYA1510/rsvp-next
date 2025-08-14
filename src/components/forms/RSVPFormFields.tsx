@@ -1,13 +1,13 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { RSVPStatus } from "@/lib/validations";
+import { RsvpStatus } from "@/lib/validations";
 
 interface RSVPFormFieldsProps {
   name: string;
   setName: (name: string) => void;
-  status: RSVPStatus;
-  setStatus: (status: RSVPStatus) => void;
+  status: RsvpStatus;
+  setStatus: (status: RsvpStatus) => void;
   guests: number;
   setGuests: (guests: number) => void;
   blessing: string;
@@ -83,7 +83,17 @@ export default function RSVPFormFields({
         </label>
         <select
           value={status}
-          onChange={(e) => setStatus(e.target.value as RSVPStatus)}
+          onChange={(e) => {
+            const newStatus = e.target.value as RsvpStatus;
+            setStatus(newStatus);
+            // אם הסטטוס הוא "no", הגדר מספר אורחים ל-0
+            if (newStatus === "no") {
+              setGuests(0);
+            } else if (guests === 0) {
+              // אם הסטטוס השתנה מ"no" למשהו אחר ומספר האורחים הוא 0, הגדר ל-1
+              setGuests(1);
+            }
+          }}
           className={`w-full p-4 border rounded-xl bg-white focus:ring-2 focus:border-transparent transition-all text-right ${
             errors.status
               ? "border-red-300 focus:ring-red-300"
@@ -91,9 +101,9 @@ export default function RSVPFormFields({
           }`}
           disabled={isDisabled}
         >
-          <option value="מגיע">מגיע</option>
-          <option value="אולי">אולי</option>
-          <option value="לא מגיע">לא מגיע</option>
+          <option value="yes">מגיע</option>
+          <option value="maybe">אולי</option>
+          <option value="no">לא מגיע</option>
         </select>
         {errors.status && (
           <motion.p
@@ -108,7 +118,7 @@ export default function RSVPFormFields({
 
       {/* Guests Field - Conditional */}
       <AnimatePresence mode="wait" key="guestsContainer">
-        {(status === "מגיע" || status === "אולי") && (
+        {(status === "yes" || status === "maybe") && (
           <motion.div
             key="guests"
             initial={{ opacity: 0, height: 0 }}
@@ -126,7 +136,7 @@ export default function RSVPFormFields({
               value={guests || ""}
               onChange={(e) => {
                 const value = e.target.value;
-                const newGuests = value === "" ? 0 : Number(value);
+                const newGuests = value === "" ? 1 : Math.max(1, Number(value));
                 setGuests(newGuests);
               }}
               className={`w-full p-4 border rounded-xl bg-white focus:ring-2 focus:border-transparent transition-all text-right ${
@@ -145,6 +155,22 @@ export default function RSVPFormFields({
                 {errors.guests}
               </motion.p>
             )}
+          </motion.div>
+        )}
+
+        {/* Message for "no" status */}
+        {status === "no" && (
+          <motion.div
+            key="not-coming-message"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className="p-4 border border-gray-300 rounded-xl bg-gray-50 text-center"
+          >
+            <p className="text-gray-600 text-sm">
+              מספר אורחים הוגדר אוטומטית ל-0
+            </p>
           </motion.div>
         )}
       </AnimatePresence>

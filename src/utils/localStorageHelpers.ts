@@ -1,6 +1,6 @@
 export interface RSVPData {
   name: string;
-  status: "מגיע" | "אולי" | "לא מגיע";
+  status: "yes" | "maybe" | "no";
   guests: number;
   blessing?: string;
   timestamp: string;
@@ -9,7 +9,7 @@ export interface RSVPData {
 
 export interface StoredRSVPData {
   name: string;
-  status: "מגיע" | "אולי" | "לא מגיע";
+  status: "yes" | "maybe" | "no";
   guests: number;
   blessing: string;
   submitted: boolean;
@@ -73,8 +73,8 @@ export const loadRSVPData = (): Partial<StoredRSVPData> => {
     const data = {
       name: localStorage.getItem("rsvp_name") || "",
       status:
-        (localStorage.getItem("rsvp_status") as "מגיע" | "אולי" | "לא מגיע") ||
-        "מגיע",
+        (localStorage.getItem("rsvp_status") as "yes" | "maybe" | "no") ||
+        "yes",
       guests: parseInt(localStorage.getItem("rsvp_guests") || "1"),
       blessing: localStorage.getItem("rsvp_blessing") || "",
       submitted: localStorage.getItem("rsvp_submitted") === "true",
@@ -85,7 +85,7 @@ export const loadRSVPData = (): Partial<StoredRSVPData> => {
     console.error("Error loading from localStorage:", error);
     return {
       name: "",
-      status: "מגיע",
+      status: "yes",
       guests: 1,
       blessing: "",
       submitted: false,

@@ -4,14 +4,18 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Toaster } from "react-hot-toast";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { getBaseUrl } from "@/lib/getBaseUrl";
 
 const inter = Inter({ subsets: ["latin"] });
 
+const base = getBaseUrl();
+const title = "הזמנת חתונה – אביתר ושובל | אישור הגעה";
+const description = "הצטרפו אלינו לחגוג את היום המאושר בחיינו! אשרו את הגעתכם וקבלו את כל פרטי האירוע.";
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://rsvp-next.vercel.app"),
-  title: "הזמנת חתונה – אביתר ושובל | אישור הגעה",
-  description:
-    "הצטרפו אלינו לחגוג את היום המאושר בחיינו! אשרו את הגעתכם לחתונה של אביתר ושובל ותוכלו לקבל את כל פרטי האירוע.",
+  metadataBase: new URL(base),
+  title,
+  description,
   manifest: "/site.webmanifest",
   icons: {
     icon: [
@@ -21,29 +25,19 @@ export const metadata: Metadata = {
     shortcut: "/favicon.ico",
   },
   openGraph: {
-    title: "הזמנת חתונה – אביתר ושובל | אישור הגעה",
-    description:
-      "הצטרפו אלינו לחגוג את היום המאושר בחיינו! אשרו את הגעתכם לחתונה של אביתר ושובל ותוכלו לקבל את כל פרטי האירוע.",
-    type: "website",
+    title,
+    description,
+    url: base,
+    siteName: "Be there",
     locale: "he_IL",
-    url: "https://rsvp-next.vercel.app",
-    siteName: "הזמנת חתונה – אביתר ושובל",
-    images: [
-      {
-        url: "/site-og.png",
-        width: 1200,
-        height: 630,
-        alt: "הזמנת חתונה – אביתר ושובל",
-      },
-    ],
+    type: "website",
+    images: [{ url: `${base}/og-image.jpg`, width: 1200, height: 630, alt: "Be there – הזמנת חתונה" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "הזמנת חתונה – אביתר ושובל | אישור הגעה",
-    description:
-      "הצטרפו אלינו לחגוג את היום המאושר בחיינו! אשרו את הגעתכם לחתונה של אביתר ושובל ותוכלו לקבל את כל פרטי האירוע.",
-    images: ["/site-og.png"],
-    creator: "@wedding_rsvp",
+    title,
+    description,
+    images: [`${base}/og-image.jpg`],
   },
 };
 

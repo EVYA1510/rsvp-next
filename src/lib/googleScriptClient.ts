@@ -19,14 +19,7 @@ export async function submitToGoogleScript(
           "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
           "User-Agent": "RSVP-Form/1.0"
         },
-        body: new URLSearchParams(
-          Object.fromEntries(
-            Object.entries(data).map(([key, value]) => [
-              key,
-              typeof value === 'string' ? encodeURIComponent(value) : value
-            ])
-          )
-        ),
+        body: new URLSearchParams(data),
         signal: AbortSignal.timeout(10000), // 10 second timeout
       });
 

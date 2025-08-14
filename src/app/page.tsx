@@ -11,6 +11,7 @@ import {
   hasShownWelcomeConfetti,
   markWelcomeConfettiAsShown,
 } from "@/lib/confetti-welcome";
+import { useVisitTracking } from "@/hooks/useVisitTracking";
 
 // Lazy load heavy components
 const WeddingCountdown = lazy(() => import("@/components/WeddingCountdown"));
@@ -50,6 +51,9 @@ const WeddingActionsSkeleton = () => (
 );
 
 export default function HomePage() {
+  // Initialize visit tracking
+  useVisitTracking();
+
   // קונפטי לברכה בפתיחת הקישור
   useEffect(() => {
     // הפעל קונפטי לברכה רק אם עוד לא הוצג

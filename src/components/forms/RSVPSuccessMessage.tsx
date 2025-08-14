@@ -2,11 +2,11 @@
 
 import { motion } from "framer-motion";
 import WeddingCard from "../ui/WeddingCard";
-import { RSVPStatus } from "@/lib/validations";
+import { RsvpStatus } from "@/lib/validations";
 
 interface RSVPSuccessMessageProps {
   name: string;
-  status: RSVPStatus;
+  status: RsvpStatus;
   guests: number;
   blessing: string;
   onReset: () => void;
@@ -21,13 +21,13 @@ export default function RSVPSuccessMessage({
 }: RSVPSuccessMessageProps) {
   const getSuccessMessage = () => {
     switch (status) {
-      case "אולי":
+      case "maybe":
         return {
           title: "מקווים שתוכלו להגיע",
           subtitle: `תודה ${name}! עדכנו אותנו על מצב ההגעה שלכם.`,
           icon: "🎈",
         };
-      case "לא מגיע":
+      case "no":
         return {
           title: "תודה על העדכון",
           subtitle: `תודה ${name}! העדכון שלך התקבל בהצלחה.`,
@@ -83,8 +83,8 @@ export default function RSVPSuccessMessage({
           <div className="text-sm text-green-700">
             <div className="font-semibold mb-2">פרטי האישור שלך:</div>
             <div>שם: {name}</div>
-            <div>סטטוס: {status}</div>
-            {status !== "לא מגיע" && <div>מספר אורחים: {guests}</div>}
+            <div>סטטוס: {status === "yes" ? "מגיע" : status === "maybe" ? "אולי" : "לא מגיע"}</div>
+            {status !== "no" && <div>מספר אורחים: {guests}</div>}
             {blessing && <div className="mt-2">ברכה: {blessing}</div>}
           </div>
         </motion.div>

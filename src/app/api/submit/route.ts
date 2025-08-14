@@ -1,130 +1,60 @@
-import { NextRequest, NextResponse } from "next/server";
-import { checkRateLimit } from "@/lib/rateLimit";
-import { submitToGoogleScript } from "@/lib/googleScriptClient";
+import { NextResponse } from "next/server";
+import { RsvpSchema } from "@/lib/validations";
+import { logError, logInfo } from "@/lib/logger";
 
-export async function POST(request: NextRequest) {
+const ENDPOINT = process.env.NEXT_PUBLIC_GAS_ENDPOINT!;
+
+// מיפוי קוד → תווית בעברית לעמודה "סטטוס" בגיליון
+const statusLabelHe: Record<string, string> = {
+  yes: "מגיע",
+  maybe: "אולי",
+  no: "לא מגיע",
+};
+
+export async function POST(req: Request) {
   try {
-    // Rate limiting check
-    const ip =
-      request.headers.get("x-forwarded-for") ||
-      request.headers.get("x-real-ip") ||
-      "unknown";
+    const json = await req.json();
+    const parsed = RsvpSchema.parse(json);
 
-    if (!checkRateLimit(ip)) {
-      return NextResponse.json(
-        { error: "יותר מדי בקשות, נסה שוב בעוד דקה." },
-        { status: 429 }
-      );
-    }
-
-    const { searchParams } = new URL(request.url);
-
-    // Extract form data from URL parameters
-    const name = searchParams.get("name");
-    const status = searchParams.get("status");
-    const guests = searchParams.get("guests");
-    const blessing = searchParams.get("blessing");
-    const timestamp = searchParams.get("timestamp");
-    const id = searchParams.get("id");
-
-    console.log("Received RSVP data:", {
-      name,
-      status,
-      guests,
-      blessing,
-      timestamp,
-      id,
-    });
-
-    if (!name || !status || !guests || !timestamp || !id) {
-      console.log("Missing required fields:", {
-        name,
-        status,
-        guests,
-        timestamp,
-        id,
-      });
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
-    }
-
-    // Prepare data for Google Script
-    const formData = {
-      name,
-      status,
-      guests,
-      blessing: blessing || "",
-      timestamp,
-      id,
+    const payload = {
+      action: "submit_rsvp",
+      id: parsed.id,
+      name: parsed.name,
+      status: statusLabelHe[parsed.status] ?? parsed.status,
+      guests: parsed.status === "yes" ? Math.max(1, parsed.guests) : 0,
+      blessing: parsed.blessing ?? "",
+      timestamp: new Date().toISOString(),
     };
 
-    // Submit to Google Script with retry mechanism
-    try {
-      const result = await submitToGoogleScript(formData);
-      console.log("Successfully submitted to Google Script:", result);
-    } catch (googleError) {
-      console.error("Google Script submission failed:", googleError);
-      // Continue with local success response even if Google Script fails
-      // This ensures the user gets a positive response
+    logInfo("Submitting RSVP to GAS", { payload });
+
+    const res = await fetch(ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      // למנוע caching
+      cache: "no-store",
+    });
+
+    const text = await res.text();
+    let data: any = {};
+    try { 
+      data = JSON.parse(text); 
+    } catch { 
+      data = { raw: text }; 
     }
 
-    return NextResponse.json({
-      success: true,
-      message: "RSVP submitted successfully",
-      data: { name, status, guests, blessing: blessing || "" },
-    });
-  } catch (error) {
-    console.error("Error submitting RSVP:", error);
-    return NextResponse.json(
-      {
-        error: "שגיאה בשליחת האישור. אנא נסה שוב.",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
+    if (!res.ok || data.success === false) {
+      logError("RSVP submit failed", { status: res.status, data, payload });
+      return NextResponse.json({ ok: false, error: data?.message || "GAS error" }, { status: 500 });
+    }
+
+    logInfo("RSVP submitted successfully", { data });
+    return NextResponse.json({ ok: true, data });
+  } catch (err: any) {
+    logError("RSVP submit exception", { error: err?.message, stack: err?.stack });
+    return NextResponse.json({ ok: false, error: err?.message || "Unknown error" }, { status: 500 });
   }
 }
 
-export async function GET(request: NextRequest) {
-  try {
-    // Rate limiting check
-    const ip =
-      request.headers.get("x-forwarded-for") ||
-      request.headers.get("x-real-ip") ||
-      "unknown";
-
-    if (!checkRateLimit(ip)) {
-      return NextResponse.json(
-        { error: "יותר מדי בקשות, נסה שוב בעוד דקה." },
-        { status: 429 }
-      );
-    }
-
-    const { searchParams } = new URL(request.url);
-    const name = searchParams.get("name");
-
-    if (!name) {
-      return NextResponse.json(
-        { error: "Name parameter is required" },
-        { status: 400 }
-      );
-    }
-
-    console.log("Checking previous RSVP for:", name);
-
-    // For now, return empty data since we don't have Google Script integration
-    // This can be replaced with actual Google Script integration later
-    return NextResponse.json({
-      found: false,
-      message: "No previous RSVP found",
-    });
-  } catch (error) {
-    console.error("Error checking previous RSVP:", error);
-    return NextResponse.json(
-      { error: "Failed to check previous RSVP" },
-      { status: 500 }
-    );
-  }
-}
+// GET endpoint removed - we only need POST for RSVP submission

@@ -52,9 +52,10 @@ describe("useRSVPForm", () => {
     await waitFor(() => {
       expect(result.current.formData).toEqual({
         name: "",
-        status: "מגיע",
+        status: "yes",
         guests: 1,
         blessing: "",
+        id: expect.any(String),
       });
       expect(result.current.submitted).toBe(false);
       expect(result.current.isSubmitting).toBe(false);
@@ -82,7 +83,7 @@ describe("useRSVPForm", () => {
       act(() => {
         result.current.setFormData({
           name: "שובל לוי",
-          status: "אולי",
+          status: "maybe",
           guests: 2,
           blessing: "מזל טוב!",
         });
@@ -90,9 +91,10 @@ describe("useRSVPForm", () => {
 
       expect(result.current.formData).toEqual({
         name: "שובל לוי",
-        status: "אולי",
+        status: "maybe",
         guests: 2,
         blessing: "מזל טוב!",
+        id: expect.any(String),
       });
     });
   });
@@ -105,7 +107,7 @@ describe("useRSVPForm", () => {
       act(() => {
         result.current.setFormData({
           name: "אביתר כהן",
-          status: "מגיע",
+          status: "yes",
           guests: 2,
           blessing: "מזל טוב!",
         });
@@ -117,7 +119,7 @@ describe("useRSVPForm", () => {
       act(() => {
         result.current.setFormData({
           name: "א", // Too short
-          status: "מגיע",
+          status: "yes",
           guests: 15, // Too many
           blessing: "",
         });
@@ -141,7 +143,7 @@ describe("useRSVPForm", () => {
       act(() => {
         result.current.setFormData({
           name: "אביתר כהן",
-          status: "לא מגיע",
+          status: "no",
           guests: 1,
           blessing: "",
         });
@@ -154,11 +156,11 @@ describe("useRSVPForm", () => {
 
       expect(result.current.errors.guests).toBeDefined();
 
-      // Test valid guest count for "מגיע" status
+      // Test valid guest count for "yes" status
       act(() => {
         result.current.setFormData({
           name: "אביתר כהן",
-          status: "מגיע",
+          status: "yes",
           guests: 2,
           blessing: "",
         });
@@ -182,7 +184,7 @@ describe("useRSVPForm", () => {
       act(() => {
         result.current.setFormData({
           name: "אביתר כהן",
-          status: "מגיע",
+          status: "yes",
           guests: 1,
           blessing: longBlessing,
         });
@@ -205,7 +207,7 @@ describe("useRSVPForm", () => {
       act(() => {
         result.current.setFormData({
           name: "אביתר Cohen",
-          status: "מגיע",
+          status: "yes",
           guests: 1,
           blessing: "",
         });
@@ -222,7 +224,7 @@ describe("useRSVPForm", () => {
       act(() => {
         result.current.setFormData({
           name: "אביתר כהן",
-          status: "מגיע",
+          status: "yes",
           guests: 1,
           blessing: "",
         });

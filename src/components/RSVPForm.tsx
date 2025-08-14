@@ -30,7 +30,7 @@ export default function RSVPForm() {
         await handleSubmit(e);
         // If we reach here, the submission was successful
         // הפעל קונפטי מתפוצץ רק אם המוזמן מגיע
-        if (formData.status === "מגיע") {
+        if (formData.status === "yes") {
           fireRSVPSequence();
         }
       } catch (error) {
