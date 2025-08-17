@@ -57,20 +57,34 @@ export function useVisitTracking() {
 
         console.log("Tracking visit:", visitData);
 
-        // Send visit data to Google Apps Script
-        const response = await fetch("/api/track-visit", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(visitData),
-        });
+        // Send visit data to Google Apps Script with timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
 
-        if (response.ok) {
-          console.log("Visit tracked successfully");
-          hasTracked.current = true;
-        } else {
-          console.error("Failed to track visit:", response.status);
+        try {
+          const response = await fetch("/api/track-visit", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(visitData),
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+
+          if (response.ok) {
+            console.log("Visit tracked successfully");
+            hasTracked.current = true;
+          } else {
+            console.error("Failed to track visit:", response.status);
+          }
+        } catch (error: any) {
+          clearTimeout(timeoutId);
+          if (error?.name === "AbortError") {
+            console.log("Tracking request timed out - continuing");
+            return;
+          }
+          console.error("Error tracking visit:", error);
         }
       } catch (error) {
         console.error("Error tracking visit:", error);
@@ -86,4 +100,3 @@ export function useVisitTracking() {
 
   return { hasTracked: hasTracked.current };
 }
-

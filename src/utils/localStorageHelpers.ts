@@ -1,142 +1,158 @@
+import { RsvpStatus } from "@/lib/validations";
+
 export interface RSVPData {
   name: string;
-  status: "yes" | "maybe" | "no";
+  status: RsvpStatus;
   guests: number;
   blessing?: string;
-  timestamp: string;
-  id?: string; // Add ID field
+  reportId?: string;
 }
 
 export interface StoredRSVPData {
-  name: string;
-  status: "yes" | "maybe" | "no";
-  guests: number;
-  blessing: string;
   submitted: boolean;
-  id?: string; // Add ID field
+  reportId?: string;
 }
 
-// Generate a unique ID
-export const generateUniqueId = (): string => {
-  return "rsvp_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
-};
+export interface FullRSVPData {
+  reportId: string;
+  name: string;
+  status: RsvpStatus;
+  guests: number;
+  blessing?: string;
+  savedAt: number;
+}
 
-// Get or create unique ID for current guest
-export const getOrCreateGuestId = (): string => {
-  try {
-    let guestId = localStorage.getItem("rsvp_id");
-
-    if (!guestId) {
-      guestId = generateUniqueId();
-      localStorage.setItem("rsvp_id", guestId);
-      console.log("Generated new guest ID:", guestId);
-    } else {
-      console.log("Using existing guest ID:", guestId);
-    }
-
-    return guestId;
-  } catch (error) {
-    console.error("Error managing guest ID:", error);
-    return generateUniqueId();
-  }
-};
+const RSVP_STORAGE_KEY = "rsvp_data";
+const RSVP_REPORT_ID_KEY = "rsvp_report_id";
+const RSVP_FULL_DATA_KEY = "rsvp_full_data";
 
 // Save RSVP data to localStorage
-export const saveRSVPData = (data: Partial<StoredRSVPData>) => {
+export function saveRSVPData(data: StoredRSVPData): void {
   try {
-    if (data.name !== undefined) {
-      localStorage.setItem("rsvp_name", data.name);
-    }
-    if (data.status !== undefined) {
-      localStorage.setItem("rsvp_status", data.status);
-    }
-    if (data.guests !== undefined) {
-      localStorage.setItem("rsvp_guests", data.guests.toString());
-    }
-    if (data.blessing !== undefined) {
-      localStorage.setItem("rsvp_blessing", data.blessing);
-    }
-    if (data.submitted !== undefined) {
-      localStorage.setItem("rsvp_submitted", data.submitted.toString());
-    }
-    if (data.id !== undefined) {
-      localStorage.setItem("rsvp_id", data.id);
+    localStorage.setItem(RSVP_STORAGE_KEY, JSON.stringify(data));
+    if (data.reportId !== undefined) {
+      localStorage.setItem(RSVP_REPORT_ID_KEY, data.reportId);
     }
   } catch (error) {
-    console.error("Error saving to localStorage:", error);
+    console.error("Error saving RSVP data:", error);
   }
-};
+}
 
 // Load RSVP data from localStorage
-export const loadRSVPData = (): Partial<StoredRSVPData> => {
+export function loadRSVPData(): StoredRSVPData | null {
   try {
-    const data = {
-      name: localStorage.getItem("rsvp_name") || "",
-      status:
-        (localStorage.getItem("rsvp_status") as "yes" | "maybe" | "no") ||
-        "yes",
-      guests: parseInt(localStorage.getItem("rsvp_guests") || "1"),
-      blessing: localStorage.getItem("rsvp_blessing") || "",
-      submitted: localStorage.getItem("rsvp_submitted") === "true",
-      id: localStorage.getItem("rsvp_id") || undefined,
-    };
-    return data;
+    const data = localStorage.getItem(RSVP_STORAGE_KEY);
+    return data ? JSON.parse(data) : null;
   } catch (error) {
-    console.error("Error loading from localStorage:", error);
-    return {
-      name: "",
-      status: "yes",
-      guests: 1,
-      blessing: "",
-      submitted: false,
-    };
+    console.error("Error loading RSVP data:", error);
+    return null;
   }
-};
+}
 
-// Clear all RSVP data from localStorage
-export const clearRSVPData = () => {
+// Check if RSVP was already submitted
+export function isAlreadySubmitted(): boolean {
+  const data = loadRSVPData();
+  return data?.submitted || false;
+}
+
+// Get report ID from localStorage
+export function getReportId(): string | null {
   try {
-    localStorage.removeItem("rsvp_name");
-    localStorage.removeItem("rsvp_status");
-    localStorage.removeItem("rsvp_guests");
-    localStorage.removeItem("rsvp_blessing");
-    localStorage.removeItem("rsvp_submitted");
-    // Note: We don't clear rsvp_id to maintain guest identity
+    return localStorage.getItem(RSVP_REPORT_ID_KEY);
   } catch (error) {
-    console.error("Error clearing localStorage:", error);
+    console.error("Error getting report ID:", error);
+    return null;
   }
-};
+}
 
-// Check if user has already submitted
-export const isAlreadySubmitted = (): boolean => {
+// Clear RSVP data from localStorage
+export function clearRSVPData(): void {
   try {
-    return localStorage.getItem("rsvp_submitted") === "true";
+    localStorage.removeItem(RSVP_STORAGE_KEY);
+    localStorage.removeItem(RSVP_REPORT_ID_KEY);
   } catch (error) {
-    console.error("Error checking submission status:", error);
-    return false;
+    console.error("Error clearing RSVP data:", error);
   }
-};
+}
 
-// Get URL parameters with proper decoding
-export const getURLParams = () => {
+// Get URL parameters
+export function getURLParams(): { name?: string } {
   if (typeof window === "undefined") return {};
 
+  const urlParams = new URLSearchParams(window.location.search);
+  const name = urlParams.get("name");
+
+  console.log("URL params:", { name });
+
+  return {
+    name: name || undefined,
+  };
+}
+
+// Generate unique ID (for backward compatibility)
+export function generateUniqueId(): string {
+  return "rsvp_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
+}
+
+const LS_KEY = "rsvp_reportId";
+
+export function getSavedReportId(): string {
   try {
-    const urlParams = new URLSearchParams(window.location.search);
-    const name = urlParams.get("name");
-    const id = urlParams.get("id");
-
-    // Properly decode the name parameter for Hebrew text
-    const decodedName = name ? decodeURIComponent(name) : null;
-
-    console.log("URL params - raw name:", name, "decoded name:", decodedName);
-
-    return {
-      name: decodedName,
-      id: id,
-    };
-  } catch (error) {
-    console.error("Error getting URL parameters:", error);
-    return {};
+    return localStorage.getItem(LS_KEY) || "";
+  } catch {
+    return "";
   }
-};
+}
+
+export function saveReportId(id: string) {
+  try {
+    if (id) localStorage.setItem(LS_KEY, id);
+  } catch {}
+}
+
+export function clearReportId() {
+  try {
+    localStorage.removeItem(LS_KEY);
+  } catch {}
+}
+
+// Save full RSVP data to localStorage
+export function saveFullRSVPData(data: FullRSVPData): void {
+  try {
+    const dataToSave = {
+      ...data,
+      savedAt: Date.now()
+    };
+    localStorage.setItem(RSVP_FULL_DATA_KEY, JSON.stringify(dataToSave));
+  } catch (error) {
+    console.error("Error saving full RSVP data:", error);
+  }
+}
+
+// Load full RSVP data from localStorage
+export function loadFullRSVPData(): FullRSVPData | null {
+  try {
+    const data = localStorage.getItem(RSVP_FULL_DATA_KEY);
+    return data ? JSON.parse(data) : null;
+  } catch (error) {
+    console.error("Error loading full RSVP data:", error);
+    return null;
+  }
+}
+
+// Get URL ID parameter
+export function getURLId(): string | null {
+  if (typeof window === "undefined") return null;
+  
+  const urlParams = new URLSearchParams(window.location.search);
+  return urlParams.get("id");
+}
+
+// Clear full RSVP data from localStorage
+export function clearFullRSVPData(): void {
+  try {
+    localStorage.removeItem(RSVP_FULL_DATA_KEY);
+  } catch (error) {
+    console.error("Error clearing full RSVP data:", error);
+  }
+}

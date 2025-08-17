@@ -1,60 +1,75 @@
-import { NextResponse } from "next/server";
-import { RsvpSchema } from "@/lib/validations";
-import { logError, logInfo } from "@/lib/logger";
+// src/app/api/submit/route.ts
+export const dynamic = "force-dynamic";
 
-const ENDPOINT = process.env.NEXT_PUBLIC_GAS_ENDPOINT!;
+function getEndpoint() {
+  const a = process.env.NEXT_PUBLIC_GAS_ENDPOINT?.trim();
+  const b = process.env.GOOGLE_SCRIPT_URL?.trim();
+  return a || b || "";
+}
 
-// מיפוי קוד → תווית בעברית לעמודה "סטטוס" בגיליון
-const statusLabelHe: Record<string, string> = {
-  yes: "מגיע",
-  maybe: "אולי",
-  no: "לא מגיע",
-};
+function normalizeOk(data: any) {
+  if (typeof data?.ok === "boolean") return data.ok;
+  if (typeof data?.success === "boolean") return data.success;
+  return false;
+}
+
+export async function GET(req: Request) {
+  const ENDPOINT = getEndpoint();
+  const urlObj = new URL(req.url);
+  const health = urlObj.searchParams.get("health");
+  if (!ENDPOINT) {
+    return Response.json({ ok: false, message: "Missing GAS endpoint" }, { status: 500 });
+  }
+  if (health === "1" || health === "true") {
+    const r = await fetch(`${ENDPOINT}?action=health`, { cache: "no-store", redirect: "follow" });
+    const data = await r.json().catch(() => ({}));
+    const ok = normalizeOk(data);
+    return Response.json({ ok, gas: data }, { status: ok ? 200 : 502 });
+  }
+  return Response.json({ ok: true, message: "POST here to submit RSVP" });
+}
 
 export async function POST(req: Request) {
   try {
-    const json = await req.json();
-    const parsed = RsvpSchema.parse(json);
-
-    const payload = {
-      action: "submit_rsvp",
-      id: parsed.id,
-      name: parsed.name,
-      status: statusLabelHe[parsed.status] ?? parsed.status,
-      guests: parsed.status === "yes" ? Math.max(1, parsed.guests) : 0,
-      blessing: parsed.blessing ?? "",
-      timestamp: new Date().toISOString(),
-    };
-
-    logInfo("Submitting RSVP to GAS", { payload });
-
-    const res = await fetch(ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-      // למנוע caching
-      cache: "no-store",
-    });
-
-    const text = await res.text();
-    let data: any = {};
-    try { 
-      data = JSON.parse(text); 
-    } catch { 
-      data = { raw: text }; 
+    const ENDPOINT = getEndpoint();
+    if (!ENDPOINT) {
+      return Response.json({ ok: false, message: "Missing GAS endpoint" }, { status: 500 });
     }
 
-    if (!res.ok || data.success === false) {
-      logError("RSVP submit failed", { status: res.status, data, payload });
-      return NextResponse.json({ ok: false, error: data?.message || "GAS error" }, { status: 500 });
+    const body = await req.json().catch(() => ({} as any));
+    const name = String(body.name ?? "").trim();
+    const status = String(body.status ?? "").trim();
+    const guests = Number.isFinite(Number(body.guests)) ? String(body.guests) : "1";
+    const blessing = String(body.blessing ?? "");
+    const reportId = body.reportId ? String(body.reportId).trim() : "";
+
+    if (!name || !status) {
+      return Response.json({ ok: false, message: "Missing name/status" }, { status: 400 });
     }
 
-    logInfo("RSVP submitted successfully", { data });
-    return NextResponse.json({ ok: true, data });
+    const qs = new URLSearchParams();
+    qs.set("action", "upsert");
+    qs.set("name", name);
+    qs.set("status", status);
+    qs.set("guests", guests);
+    if (blessing) qs.set("blessing", blessing);
+    if (reportId) qs.set("reportId", reportId);
+
+    const url = `${ENDPOINT}?${qs.toString()}`;
+    const res = await fetch(url, { method: "GET", cache: "no-store", redirect: "follow" });
+    const data = await res.json().catch(() => ({}));
+    const ok = normalizeOk(data);
+
+    return Response.json(
+      {
+        ok,
+        action: data.action ?? (reportId ? "update" : "create"),
+        reportId: data.reportId ?? reportId ?? null,
+        gas: data,
+      },
+      { status: ok ? 200 : 502 }
+    );
   } catch (err: any) {
-    logError("RSVP submit exception", { error: err?.message, stack: err?.stack });
-    return NextResponse.json({ ok: false, error: err?.message || "Unknown error" }, { status: 500 });
+    return Response.json({ ok: false, message: err?.message || "Server error" }, { status: 500 });
   }
 }
-
-// GET endpoint removed - we only need POST for RSVP submission

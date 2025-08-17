@@ -1,375 +1,344 @@
-import { useState, useEffect, useCallback } from "react";
-import toast from "react-hot-toast";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { toast } from "react-hot-toast";
+import { RsvpFormData, validateRsvpForm, isGasOk } from "@/lib/validations";
 import {
-  RSVPFormData,
-  safeValidateRSVPForm,
-  RsvpStatus,
-} from "@/lib/validations";
-import {
-  saveRSVPData,
-  loadRSVPData,
-  isAlreadySubmitted,
-  getURLParams,
-  getOrCreateGuestId,
-  clearRSVPData,
+  getSavedReportId,
+  saveReportId,
+  clearReportId,
+  saveFullRSVPData,
+  loadFullRSVPData,
+  getURLId,
+  clearFullRSVPData,
 } from "@/utils/localStorageHelpers";
 
 interface UseRSVPFormReturn {
-  // Form state
-  formData: RSVPFormData;
-  setFormData: (data: Partial<RSVPFormData>) => void;
-
-  // UI state
+  formData: RsvpFormData;
+  setFormData: (data: Partial<RsvpFormData>) => void;
   submitted: boolean;
   isSubmitting: boolean;
-  isLoadingPrevious: boolean;
   nameFromURL: string | null;
   isNameLocked: boolean;
   submitMessage: string;
-
-  // Validation
-  errors: Record<string, string>;
-  validateForm: () => boolean;
-
-  // Actions
-  handleSubmit: (e: React.FormEvent) => Promise<void>;
+  isFormReady: boolean;
+  isAlreadySubmitted: boolean;
+  reportId: string | null;
+  handleSubmit: () => Promise<void>;
   handleReset: () => void;
-  checkPreviousRSVP: (guestName: string) => Promise<void>;
 }
 
 export function useRSVPForm(): UseRSVPFormReturn {
-  // Form state
-  const [formData, setFormDataState] = useState<RSVPFormData>({
+  const [formData, setFormDataState] = useState<RsvpFormData>({
     name: "",
     status: "yes",
     guests: 1,
     blessing: "",
-    id: "",
   });
 
-  // UI state
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoadingPrevious, setIsLoadingPrevious] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitMessage, setSubmitMessage] = useState("");
+  const [isFormReady, setIsFormReady] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [isAlreadySubmitted, setIsAlreadySubmitted] = useState(false);
+  const [reportId, setReportId] = useState<string | null>(null);
+
+  // Get name from URL parameter
   const [nameFromURL, setNameFromURL] = useState<string | null>(null);
   const [isNameLocked, setIsNameLocked] = useState(false);
-  const [submitMessage, setSubmitMessage] = useState("");
-  const [guestId, setGuestId] = useState<string>("");
-  const [isInitialized, setIsInitialized] = useState(false);
+  const loadedFromUrl = useRef(false);
 
-  // Validation
-  const [errors, setErrors] = useState<Record<string, string>>({});
-
-  // Check previous RSVP function
-  const checkPreviousRSVP = useCallback(async (guestName: string) => {
-    if (!guestName.trim()) return;
-
-    setIsLoadingPrevious(true);
-    setSubmitMessage("");
-
-    try {
-      const response = await fetch(
-        `/api/submit?name=${encodeURIComponent(guestName)}`
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.previousRSVP) {
-          setSubmitMessage(
-            `מצאנו אישור קודם שלך מ-${new Date(
-              data.previousRSVP.timestamp
-            ).toLocaleDateString("he-IL")}. תוכל לעדכן את הפרטים אם תרצה.`
-          );
-        }
-      }
-    } catch (error) {
-      console.error("Error checking previous RSVP:", error);
-    } finally {
-      setIsLoadingPrevious(false);
-    }
-  }, []);
-
-  // Initialize form
+  // Load data on mount - from URL ID or localStorage
   useEffect(() => {
-    const initializeForm = () => {
-      try {
-        // Get or create unique guest ID
-        const id = getOrCreateGuestId();
-        setGuestId(id);
+    const loadData = async () => {
+      const urlId = getURLId();
 
-        // Read URL parameters
-        const urlParams = getURLParams();
-        const urlName = urlParams.name;
+      if (urlId) {
+        // Load from GAS via API
+        try {
+          console.log("Loading RSVP data from URL ID:", urlId);
+          const response = await fetch(
+            `/api/rsvp?id=${encodeURIComponent(urlId)}`
+          );
 
-        console.log("Initializing form with URL name:", urlName);
-        console.log("URL params object:", urlParams);
+          if (response.ok) {
+            const data = await response.json();
+            console.log("RSVP data loaded from GAS:", data);
 
-        // If name comes from URL, lock it
-        if (urlName && urlName.trim()) {
-          setNameFromURL(urlName.trim());
-          setIsNameLocked(true);
-        }
+            if (data.success && data.data) {
+              const rsvpData = data.data;
+              setFormDataState({
+                name: rsvpData.name || "",
+                status: rsvpData.status || "yes",
+                guests: rsvpData.guests || 1,
+                blessing: rsvpData.blessing || "",
+              });
+              setReportId(rsvpData.reportId || urlId);
+              setIsAlreadySubmitted(true);
 
-        // Load from localStorage
-        const savedData = loadRSVPData();
-        console.log("Loaded data from localStorage:", savedData);
+              // Save to localStorage for future use
+              saveFullRSVPData({
+                reportId: rsvpData.reportId || urlId,
+                name: rsvpData.name || "",
+                status: rsvpData.status || "yes",
+                guests: rsvpData.guests || 1,
+                blessing: rsvpData.blessing || "",
+                savedAt: Date.now(),
+              });
 
-        // Set form data - prioritize URL name over localStorage
-        // Ensure we don't lose the URL name if it exists
-        const finalName =
-          urlName && urlName.trim() ? urlName.trim() : savedData.name || "";
-        const finalStatus = (savedData.status as RsvpStatus) || "yes";
-        const finalGuests = finalStatus === "no" ? 0 : savedData.guests || 1;
+              return;
+            } else if (data.success && data.data === null) {
+              console.warn("GAS returned null data - RSVP not found");
+            } else if (data.error) {
+              console.warn("GAS returned error:", data.error);
+            } else if (data.name) {
+              // Handle direct GAS response (without wrapper)
+              console.log("Direct GAS response detected:", data);
+              setFormDataState({
+                name: data.name || "",
+                status: data.status || "yes",
+                guests: data.guests || 1,
+                blessing: data.blessing || "",
+              });
+              setReportId(data.reportId || urlId);
+              setIsAlreadySubmitted(true);
 
-        console.log("Setting form data:", {
-          name: finalName,
-          status: finalStatus,
-          guests: finalGuests,
-          blessing: savedData.blessing || "",
-        });
+              // Save to localStorage for future use
+              saveFullRSVPData({
+                reportId: data.reportId || urlId,
+                name: data.name || "",
+                status: data.status || "yes",
+                guests: data.guests || 1,
+                blessing: data.blessing || "",
+                savedAt: Date.now(),
+              });
 
-        setFormDataState({
-          name: finalName,
-          status: finalStatus,
-          guests: finalGuests,
-          blessing: savedData.blessing || "",
-          id: id,
-        });
-
-        // Mark as initialized
-        setIsInitialized(true);
-
-        // Check if already submitted
-        if (isAlreadySubmitted()) {
-          setSubmitted(true);
-        }
-
-        // Check previous RSVP if we have a name
-        if (finalName) {
-          checkPreviousRSVP(finalName);
-        }
-
-        // Double-check that the name is properly set
-        console.log("Final initialization check - name:", finalName);
-        if (urlName && urlName.trim() && !finalName) {
-          console.error("Name from URL was lost during initialization!");
-          setFormDataState((prev) => ({ ...prev, name: urlName.trim() }));
-        }
+              return;
+            } else {
+              console.warn("Unexpected GAS response format:", data);
+            }
+          } else {
+            console.warn(`GAS responded with status: ${response.status}`);
+            try {
+              const errorData = await response.json();
+              console.warn("Error response data:", errorData);
+            } catch (parseError) {
+              console.warn("Could not parse error response");
+            }
+          }
       } catch (error) {
-        console.error("Error initializing form:", error);
-        setIsInitialized(true);
+        console.error("Error loading RSVP data from GAS:", error);
+        // Continue to localStorage fallback
       }
+    }
+
+      // Fallback to localStorage
+      const savedData = loadFullRSVPData();
+      if (savedData) {
+        console.log("Loading RSVP data from localStorage:", savedData);
+        setFormDataState({
+          name: savedData.name,
+          status: savedData.status,
+          guests: savedData.guests,
+          blessing: savedData.blessing || "",
+        });
+        setReportId(savedData.reportId);
+        setIsAlreadySubmitted(true);
+        return;
+      }
+
+      // Load name from URL parameter if no other data
+      if (!loadedFromUrl.current) {
+        const params = new URLSearchParams(window.location.search);
+        const n = params.get("name");
+        if (n) {
+          const cleanName = n.trim().replace(/\s+/g, " ");
+          setNameFromURL(cleanName);
+          setIsNameLocked(true);
+          setFormDataState((prev) => ({ ...prev, name: cleanName }));
+          console.log("Name loaded from URL:", cleanName);
+        }
+        loadedFromUrl.current = true;
+      }
+      
+      setIsInitialized(true);
     };
 
-    initializeForm();
-  }, [checkPreviousRSVP]);
+    loadData();
+  }, []);
 
-  // Auto-set guests to 0 when status is "no"
+  // Track visit once per session
   useEffect(() => {
-    if (formData.status === "no" && formData.guests > 0) {
-      console.log("Auto-setting guests to 0 for status 'no'");
-      setFormDataState((prev) => ({ ...prev, guests: 0 }));
-    }
-  }, [formData.status]);
+    if (!isInitialized || sessionStorage.getItem("visit_tracked")) return;
+    
+    const reportId = getSavedReportId();
+    const currentName = formData.name || nameFromURL || "Anonymous";
 
-  // Save form data to localStorage
+    fetch("/api/track-visit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: currentName,
+        device: navigator.userAgent,
+        reportId,
+      }),
+    }).finally(() => sessionStorage.setItem("visit_tracked", "1"));
+  }, [isInitialized, formData.name, nameFromURL]);
+
+  // Check if form is ready
   useEffect(() => {
     if (!isInitialized) return;
+    
+    const isReady =
+      formData.name.trim().length > 0 && // יש שם
+      Object.keys(errors).length === 0; // אין שגיאות
 
-    // Use URL name if form name is empty and we have a locked name
-    const nameToSave =
-      formData.name.trim() || (isNameLocked && nameFromURL ? nameFromURL : "");
+    console.log("isFormReady check:", {
+      nameLength: formData.name.trim().length,
+      errorsCount: Object.keys(errors).length,
+      isReady,
+    });
 
-    // Don't save if name is still empty
-    if (!nameToSave) {
-      console.log("Skipping save - no valid name available");
+    setIsFormReady(isReady);
+  }, [isInitialized, formData.name, errors]);
+
+  // Validate form
+  const validateForm = useCallback(() => {
+    try {
+      validateRsvpForm(formData);
+      setErrors({});
+      return true;
+    } catch (error: any) {
+      if (error.errors) {
+        const newErrors: Record<string, string> = {};
+        error.errors.forEach((err: any) => {
+          if (err.path) {
+            newErrors[err.path[0]] = err.message;
+          }
+        });
+        setErrors(newErrors);
+      }
+      return false;
+    }
+  }, [formData]);
+
+  // Set form data
+  const setFormData = useCallback((data: Partial<RsvpFormData>) => {
+    setFormDataState((prev) => ({ ...prev, ...data }));
+  }, []);
+
+  // Handle form submission
+  const handleSubmit = useCallback(async () => {
+    if (!isFormReady || isSubmitting) {
+      console.log("Form not ready or already submitting");
       return;
     }
 
-    console.log("Saving form data to localStorage:", {
-      ...formData,
-      name: nameToSave,
-    });
-    saveRSVPData({
-      name: nameToSave,
-      status: formData.status,
-      guests: formData.guests,
-      blessing: formData.blessing || "",
-    });
-  }, [formData, isInitialized, isNameLocked, nameFromURL]);
+    if (!validateForm()) {
+      toast.error("יש שגיאות בטופס. אנא תקן אותן ונסה שוב.");
+      return;
+    }
 
-  // Form data setter
-  const setFormData = useCallback(
-    (data: Partial<RSVPFormData>) => {
-      console.log("Setting form data:", data);
-      setFormDataState((prev) => {
-        const newData = { ...prev, ...data };
+    setIsSubmitting(true);
+    setSubmitMessage("");
 
-        // Ensure we don't clear the name if it's locked (from URL)
-        if (isNameLocked && (data.name === "" || data.name === undefined)) {
-          newData.name = prev.name || nameFromURL || "";
-        }
+    try {
+      const submissionName = formData.name.trim();
+      const finalStatus = formData.status;
+      const finalGuests =
+        finalStatus === "yes" ? Math.max(1, formData.guests) : 0;
 
-        console.log("New form data:", newData);
-        return newData;
+      const payload = {
+        name: submissionName,
+        status: finalStatus,
+        guests: finalGuests,
+        blessing: formData.blessing || "",
+        reportId: reportId || getSavedReportId() || "",
+      };
+
+      console.log("Submitting RSVP with data:", payload);
+
+      const response = await fetch("/api/submit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
       });
-    },
-    [isNameLocked, nameFromURL]
-  );
 
-  // Validation function
-  const validateForm = useCallback((): boolean => {
-    console.log("Validating form data:", formData);
+      const data = await response.json();
+      console.log("Response data:", data);
 
-    // וולידציה נוספת: אם הסטטוס הוא "no", מספר האורחים חייב להיות 0
-    if (formData.status === "no" && formData.guests !== 0) {
-      console.log("Auto-correcting guests count for 'no' status");
-      setFormDataState((prev) => ({ ...prev, guests: 0 }));
-    }
-
-    // וולידציה נוספת: אם הסטטוס הוא "maybe" או "yes", מספר האורחים חייב להיות לפחות 1
-    if (
-      (formData.status === "maybe" || formData.status === "yes") &&
-      formData.guests < 1
-    ) {
-      console.log("Auto-correcting guests count for 'maybe'/'yes' status");
-      setFormDataState((prev) => ({ ...prev, guests: 1 }));
-    }
-
-    const validation = safeValidateRSVPForm(formData);
-
-    if (!validation.success) {
-      const newErrors: Record<string, string> = {};
-      validation.error.issues.forEach((err) => {
-        if (err.path) {
-          newErrors[err.path[0] as string] = err.message;
-        }
-      });
-      console.log("Validation errors:", newErrors);
-      setErrors(newErrors);
-      return false;
-    }
-
-    setErrors({});
-    return true;
-  }, [formData]);
-
-  // Handle form submission
-  const handleSubmit = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-
-      console.log("Form submission started with data:", formData);
-      console.log("Form data name field:", formData.name);
-      console.log("Form data name length:", formData.name.length);
-      console.log("Form data name trimmed:", formData.name.trim());
-      console.log(
-        "Form data name trimmed length:",
-        formData.name.trim().length
-      );
-
-      if (!validateForm()) {
-        toast.error("יש שגיאות בטופס. אנא תקן אותן ונסה שוב.");
-        return;
+      if (!isGasOk(data)) {
+        throw new Error(data?.message || "Submit failed");
       }
 
-      if (!guestId) {
-        toast.error("שגיאה: לא נמצא מזהה אורח. אנא רענן את הדף ונסה שוב.");
-        return;
-      }
-
-      setIsSubmitting(true);
-
-      try {
-        // Ensure we have a valid name - use URL name if form name is empty
-        const submissionName = formData.name.trim() || nameFromURL || "";
-
-        // Validate the submission name
-        if (!submissionName || submissionName.trim().length < 2) {
-          toast.error("שם לא תקין. אנא הזן שם תקין.");
-          return;
-        }
-
-        // וולידציה נוספת: אם הסטטוס הוא "no", מספר האורחים חייב להיות 0
-        // אם הסטטוס הוא "maybe" או "yes", מספר האורחים חייב להיות לפחות 1
-        let finalGuests = formData.guests;
-        if (formData.status === "no") {
-          finalGuests = 0;
-        } else if (formData.status === "maybe" || formData.status === "yes") {
-          finalGuests = Math.max(1, formData.guests);
-        }
-
-        const payload = {
-          name: submissionName,
+            if (data.reportId) {
+        saveReportId(data.reportId);
+        setReportId(data.reportId);
+        
+        // Save full RSVP data to localStorage
+        saveFullRSVPData({
+          reportId: data.reportId,
+          name: formData.name,
           status: formData.status,
-          guests: finalGuests,
+          guests: formData.guests,
           blessing: formData.blessing || "",
-          id: guestId,
-        };
-
-        console.log("Submitting RSVP with data:", payload);
-
-        const response = await fetch("/api/submit", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
+          savedAt: Date.now(),
         });
-
-        if (response.ok) {
-          const result = await response.json();
-
-          if (result.ok) {
-            setSubmitted(true);
-            saveRSVPData({ submitted: true });
-            toast.success("האישור נשלח בהצלחה! 🎉");
-          } else {
-            throw new Error(result.error || "שגיאה בשליחת האישור");
-          }
-        } else {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || "שגיאה בשליחת האישור");
-        }
-      } catch (error) {
-        console.error("Submission error:", error);
-        toast.error("אירעה שגיאה בשליחת האישור. אנא נסה שוב.");
-      } finally {
-        setIsSubmitting(false);
+      } else if (reportId) {
+        // If we already have a reportId, save the current data
+        saveFullRSVPData({
+          reportId: reportId,
+          name: formData.name,
+          status: formData.status,
+          guests: formData.guests,
+          blessing: formData.blessing || "",
+          savedAt: Date.now(),
+        });
       }
-    },
-    [formData, guestId, validateForm, nameFromURL]
-  );
+
+      setSubmitted(true);
+      setIsAlreadySubmitted(true);
+      toast.success("האישור נשלח בהצלחה! 🎉");
+    } catch (error: any) {
+      console.error("Submission error:", error);
+      toast.error("אירעה שגיאה בשליחת האישור. אנא נסה שוב.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [formData, validateForm, isFormReady, isSubmitting, reportId]);
 
   // Handle form reset
   const handleReset = useCallback(() => {
     setSubmitted(false);
+    setIsAlreadySubmitted(false);
+    setReportId(null);
     setFormDataState({
-      name: "",
+      name: nameFromURL || "", // Keep name from URL if exists
       status: "yes",
       guests: 1,
       blessing: "",
-      id: "",
     });
     setErrors({});
     setSubmitMessage("");
-    clearRSVPData();
+    clearReportId();
+    clearFullRSVPData();
     toast.success("הטופס אופס מחדש");
-  }, []);
+  }, [nameFromURL]);
 
   return {
     formData,
     setFormData,
     submitted,
     isSubmitting,
-    isLoadingPrevious,
     nameFromURL,
     isNameLocked,
     submitMessage,
-    errors,
-    validateForm,
+    isFormReady,
+    isAlreadySubmitted,
+    reportId,
     handleSubmit,
     handleReset,
-    checkPreviousRSVP,
   };
 }

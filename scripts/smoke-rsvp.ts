@@ -1,4 +1,4 @@
-const url = process.env.NEXT_PUBLIC_GAS_ENDPOINT || "https://script.google.com/macros/s/AKfycbzu3VBXivLEvFX2iV_a4Mb1Hp0733lazmMMczLhK1dsjL2mr0AC7Uqq89FLqugE5gotEg/exec";
+const url = process.env.NEXT_PUBLIC_GAS_ENDPOINT || "https://script.google.com/macros/s/AKfycbzrBbphAdcYZ5n9iYafQIik96Zjski7H5LBFIg0x03D/exec";
 
 async function send(p: any) {
   // Convert to URL parameters for the current GAS implementation
