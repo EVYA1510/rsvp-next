@@ -14,18 +14,40 @@ export function loadCachedRSVP(): CachedRSVPData | null {
   try {
     if (typeof window === 'undefined') return null;
     
+    // Try new cache format first
     const cached = localStorage.getItem(CACHE_KEY);
-    if (!cached) return null;
-    
-    const data: CachedRSVPData = JSON.parse(cached);
-    
-    // Check if cache is still valid
-    if (Date.now() - data.updatedAt > CACHE_DURATION) {
-      localStorage.removeItem(CACHE_KEY);
-      return null;
+    if (cached) {
+      const data: CachedRSVPData = JSON.parse(cached);
+      
+      // Check if cache is still valid
+      if (Date.now() - data.updatedAt > CACHE_DURATION) {
+        localStorage.removeItem(CACHE_KEY);
+      } else {
+        return data;
+      }
     }
     
-    return data;
+    // Fallback to old cache format
+    const oldCached = localStorage.getItem('rsvp_full_data');
+    if (oldCached) {
+      const oldData = JSON.parse(oldCached);
+      
+      // Convert old format to new format
+      const newData: CachedRSVPData = {
+        reportId: oldData.reportId || '',
+        name: oldData.name || '',
+        status: oldData.status || 'yes',
+        guests: oldData.guests || 1,
+        blessing: oldData.blessing || '',
+        updatedAt: oldData.savedAt || Date.now(),
+      };
+      
+      // Save in new format and return
+      saveCachedRSVP(newData);
+      return newData;
+    }
+    
+    return null;
   } catch (error) {
     console.warn('Failed to load cached RSVP data:', error);
     return null;

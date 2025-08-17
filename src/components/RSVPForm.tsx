@@ -32,20 +32,29 @@ export default function RSVPForm() {
     setAlreadySubmitted,
   } = useRSVPForm();
 
-    // Integrate bootstrap data with form state
+  // Integrate bootstrap data with form state
   useEffect(() => {
     if (bootstrapData) {
+      console.log("RSVPForm: Setting form data from bootstrap:", bootstrapData);
       setFormData({
         name: bootstrapData.name,
         status: bootstrapData.status,
         guests: bootstrapData.guests,
         blessing: bootstrapData.blessing || "",
       });
-      
+
       // Set already submitted state if we have bootstrap data
       setAlreadySubmitted(bootstrapData.reportId);
     }
   }, [bootstrapData, setFormData, setAlreadySubmitted]);
+
+  // Force re-render when bootstrap data changes
+  useEffect(() => {
+    if (bootstrapData && bootstrapReady) {
+      console.log("RSVPForm: Bootstrap ready with data, forcing update");
+      // This will trigger a re-render
+    }
+  }, [bootstrapData, bootstrapReady]);
 
   // Trigger confetti when status is "yes"
   const shouldTriggerConfetti = formData.status === "yes";
@@ -73,6 +82,15 @@ export default function RSVPForm() {
       </div>
     );
   }
+
+  // Debug logging
+  console.log("RSVPForm render:", {
+    bootstrapData,
+    phase,
+    isAlreadySubmitted,
+    submitted,
+    formData,
+  });
 
   // Show success message if submitted or already submitted
   if (submitted || isAlreadySubmitted) {
