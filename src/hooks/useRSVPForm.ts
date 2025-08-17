@@ -6,8 +6,6 @@ import {
   saveReportId,
   clearReportId,
   saveFullRSVPData,
-  loadFullRSVPData,
-  getURLId,
   clearFullRSVPData,
 } from "@/utils/localStorageHelpers";
 
@@ -24,6 +22,7 @@ interface UseRSVPFormReturn {
   reportId: string | null;
   handleSubmit: () => Promise<void>;
   handleReset: () => void;
+  setAlreadySubmitted: (reportId: string) => void;
 }
 
 export function useRSVPForm(): UseRSVPFormReturn {
@@ -48,129 +47,27 @@ export function useRSVPForm(): UseRSVPFormReturn {
   const [isNameLocked, setIsNameLocked] = useState(false);
   const loadedFromUrl = useRef(false);
 
-  // Load data on mount - from URL ID or localStorage
+  // Simplified data loading - bootstrap handles the heavy lifting
   useEffect(() => {
-    const loadData = async () => {
-      const urlId = getURLId();
-
-      if (urlId) {
-        // Load from GAS via API
-        try {
-          console.log("Loading RSVP data from URL ID:", urlId);
-          const response = await fetch(
-            `/api/rsvp?id=${encodeURIComponent(urlId)}`
-          );
-
-          if (response.ok) {
-            const data = await response.json();
-            console.log("RSVP data loaded from GAS:", data);
-
-            if (data.success && data.data) {
-              const rsvpData = data.data;
-              setFormDataState({
-                name: rsvpData.name || "",
-                status: rsvpData.status || "yes",
-                guests: rsvpData.guests || 1,
-                blessing: rsvpData.blessing || "",
-              });
-              setReportId(rsvpData.reportId || urlId);
-              setIsAlreadySubmitted(true);
-
-              // Save to localStorage for future use
-              saveFullRSVPData({
-                reportId: rsvpData.reportId || urlId,
-                name: rsvpData.name || "",
-                status: rsvpData.status || "yes",
-                guests: rsvpData.guests || 1,
-                blessing: rsvpData.blessing || "",
-                savedAt: Date.now(),
-              });
-
-              return;
-            } else if (data.success && data.data === null) {
-              console.warn("GAS returned null data - RSVP not found");
-            } else if (data.error) {
-              console.warn("GAS returned error:", data.error);
-            } else if (data.name) {
-              // Handle direct GAS response (without wrapper)
-              console.log("Direct GAS response detected:", data);
-              setFormDataState({
-                name: data.name || "",
-                status: data.status || "yes",
-                guests: data.guests || 1,
-                blessing: data.blessing || "",
-              });
-              setReportId(data.reportId || urlId);
-              setIsAlreadySubmitted(true);
-
-              // Save to localStorage for future use
-              saveFullRSVPData({
-                reportId: data.reportId || urlId,
-                name: data.name || "",
-                status: data.status || "yes",
-                guests: data.guests || 1,
-                blessing: data.blessing || "",
-                savedAt: Date.now(),
-              });
-
-              return;
-            } else {
-              console.warn("Unexpected GAS response format:", data);
-            }
-          } else {
-            console.warn(`GAS responded with status: ${response.status}`);
-            try {
-              const errorData = await response.json();
-              console.warn("Error response data:", errorData);
-            } catch (parseError) {
-              console.warn("Could not parse error response");
-            }
-          }
-      } catch (error) {
-        console.error("Error loading RSVP data from GAS:", error);
-        // Continue to localStorage fallback
+    if (!loadedFromUrl.current) {
+      const params = new URLSearchParams(window.location.search);
+      const n = params.get("name");
+      if (n) {
+        const cleanName = n.trim().replace(/\s+/g, " ");
+        setNameFromURL(cleanName);
+        setIsNameLocked(true);
+        setFormDataState((prev) => ({ ...prev, name: cleanName }));
+        console.log("Name loaded from URL:", cleanName);
       }
+      loadedFromUrl.current = true;
     }
-
-      // Fallback to localStorage
-      const savedData = loadFullRSVPData();
-      if (savedData) {
-        console.log("Loading RSVP data from localStorage:", savedData);
-        setFormDataState({
-          name: savedData.name,
-          status: savedData.status,
-          guests: savedData.guests,
-          blessing: savedData.blessing || "",
-        });
-        setReportId(savedData.reportId);
-        setIsAlreadySubmitted(true);
-        return;
-      }
-
-      // Load name from URL parameter if no other data
-      if (!loadedFromUrl.current) {
-        const params = new URLSearchParams(window.location.search);
-        const n = params.get("name");
-        if (n) {
-          const cleanName = n.trim().replace(/\s+/g, " ");
-          setNameFromURL(cleanName);
-          setIsNameLocked(true);
-          setFormDataState((prev) => ({ ...prev, name: cleanName }));
-          console.log("Name loaded from URL:", cleanName);
-        }
-        loadedFromUrl.current = true;
-      }
-      
-      setIsInitialized(true);
-    };
-
-    loadData();
+    setIsInitialized(true);
   }, []);
 
   // Track visit once per session
   useEffect(() => {
     if (!isInitialized || sessionStorage.getItem("visit_tracked")) return;
-    
+
     const reportId = getSavedReportId();
     const currentName = formData.name || nameFromURL || "Anonymous";
 
@@ -188,7 +85,7 @@ export function useRSVPForm(): UseRSVPFormReturn {
   // Check if form is ready
   useEffect(() => {
     if (!isInitialized) return;
-    
+
     const isReady =
       formData.name.trim().length > 0 && // יש שם
       Object.keys(errors).length === 0; // אין שגיאות
@@ -273,10 +170,10 @@ export function useRSVPForm(): UseRSVPFormReturn {
         throw new Error(data?.message || "Submit failed");
       }
 
-            if (data.reportId) {
+      if (data.reportId) {
         saveReportId(data.reportId);
         setReportId(data.reportId);
-        
+
         // Save full RSVP data to localStorage
         saveFullRSVPData({
           reportId: data.reportId,
@@ -309,6 +206,12 @@ export function useRSVPForm(): UseRSVPFormReturn {
     }
   }, [formData, validateForm, isFormReady, isSubmitting, reportId]);
 
+  // Set already submitted state (for bootstrap integration)
+  const setAlreadySubmitted = useCallback((newReportId: string) => {
+    setIsAlreadySubmitted(true);
+    setReportId(newReportId);
+  }, []);
+
   // Handle form reset
   const handleReset = useCallback(() => {
     setSubmitted(false);
@@ -340,5 +243,6 @@ export function useRSVPForm(): UseRSVPFormReturn {
     reportId,
     handleSubmit,
     handleReset,
+    setAlreadySubmitted,
   };
 }

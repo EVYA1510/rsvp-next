@@ -1,12 +1,21 @@
 "use client";
 
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect } from "react";
 import { useRSVPForm } from "@/hooks/useRSVPForm";
+import { useRsvpBootstrap } from "@/hooks/useRsvpBootstrap";
 import RSVPFormFields from "./forms/RSVPFormFields";
 import RSVPSuccessMessage from "./forms/RSVPSuccessMessage";
+import { RSVPSkeleton } from "./ui/Skeleton";
 import Confetti from "./Confetti";
 
 export default function RSVPForm() {
+  const {
+    phase,
+    data: bootstrapData,
+    error: bootstrapError,
+    isReady: bootstrapReady,
+  } = useRsvpBootstrap();
+
   const {
     formData,
     setFormData,
@@ -20,7 +29,23 @@ export default function RSVPForm() {
     reportId,
     handleSubmit,
     handleReset,
+    setAlreadySubmitted,
   } = useRSVPForm();
+
+    // Integrate bootstrap data with form state
+  useEffect(() => {
+    if (bootstrapData) {
+      setFormData({
+        name: bootstrapData.name,
+        status: bootstrapData.status,
+        guests: bootstrapData.guests,
+        blessing: bootstrapData.blessing || "",
+      });
+      
+      // Set already submitted state if we have bootstrap data
+      setAlreadySubmitted(bootstrapData.reportId);
+    }
+  }, [bootstrapData, setFormData, setAlreadySubmitted]);
 
   // Trigger confetti when status is "yes"
   const shouldTriggerConfetti = formData.status === "yes";
@@ -32,22 +57,98 @@ export default function RSVPForm() {
     }
   }, [handleSubmit, isSubmitting]);
 
+  // Show skeleton while initializing
+  if (!bootstrapReady) {
+    return <RSVPSkeleton />;
+  }
+
+  // Show error state if bootstrap failed
+  if (bootstrapError) {
+    return (
+      <div className="w-full max-w-md mx-auto text-center p-6">
+        <div className="text-red-600 bg-red-50 p-4 rounded-lg">
+          <p className="font-medium">שגיאה בטעינת הנתונים</p>
+          <p className="text-sm mt-1">{bootstrapError}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show success message if submitted or already submitted
   if (submitted || isAlreadySubmitted) {
     return (
-      <RSVPSuccessMessage
-        name={formData.name}
-        status={formData.status}
-        guests={formData.guests}
-        blessing={formData.blessing}
-        onReset={handleReset}
-        isAlreadySubmitted={isAlreadySubmitted}
-        reportId={reportId}
-      />
+      <div className="w-full max-w-md mx-auto">
+        {/* Sync indicator */}
+        {phase === "revalidating" && (
+          <div className="text-center mb-4">
+            <div className="inline-flex items-center text-sm text-blue-600">
+              <svg
+                className="animate-spin -ml-1 mr-2 h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+              מסנכרן...
+            </div>
+          </div>
+        )}
+
+        <RSVPSuccessMessage
+          name={formData.name}
+          status={formData.status}
+          guests={formData.guests}
+          blessing={formData.blessing}
+          onReset={handleReset}
+          isAlreadySubmitted={isAlreadySubmitted}
+          reportId={reportId}
+        />
+      </div>
     );
   }
 
   return (
     <div className="w-full max-w-md mx-auto">
+      {/* Sync indicator */}
+      {phase === "revalidating" && (
+        <div className="text-center mb-4">
+          <div className="inline-flex items-center text-sm text-blue-600">
+            <svg
+              className="animate-spin -ml-1 mr-2 h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              ></circle>
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
+            </svg>
+            מסנכרן...
+          </div>
+        </div>
+      )}
+
       <form
         data-testid="rsvp-form"
         onSubmit={(e) => {

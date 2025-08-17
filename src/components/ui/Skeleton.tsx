@@ -1,41 +1,82 @@
 "use client";
 
-import { motion } from "framer-motion";
+import React from "react";
 
 interface SkeletonProps {
   className?: string;
-  width?: string | number;
-  height?: string | number;
-  rounded?: "sm" | "md" | "lg" | "xl" | "full";
+  height?: string;
+  width?: string;
 }
 
-export default function Skeleton({ 
-  className = "", 
-  width = "100%", 
-  height = "20px", 
-  rounded = "md" 
+export default function Skeleton({
+  className = "",
+  height = "h-4",
+  width = "w-full",
 }: SkeletonProps) {
-  const roundedClasses = {
-    sm: "rounded-sm",
-    md: "rounded-md",
-    lg: "rounded-lg",
-    xl: "rounded-xl",
-    full: "rounded-full",
-  };
-
   return (
-    <motion.div
-      className={`bg-gray-200 animate-pulse ${roundedClasses[rounded]} ${className}`}
-      style={{ width, height }}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
+    <div
+      data-testid="skeleton"
+      className={`animate-pulse bg-gray-200 rounded ${height} ${width} ${className}`}
     />
   );
 }
 
+export function RSVPSkeleton() {
+  return (
+    <div
+      className="w-full max-w-md mx-auto space-y-6"
+      data-testid="rsvp-skeleton"
+    >
+      {/* Name field skeleton */}
+      <div>
+        <div className="mb-2 h-4 w-20 animate-pulse bg-gray-200 rounded" />
+        <div className="h-10 w-full animate-pulse bg-gray-200 rounded" />
+      </div>
+
+      {/* Status field skeleton */}
+      <div>
+        <div className="mb-2 h-4 w-32 animate-pulse bg-gray-200 rounded" />
+        <div className="h-10 w-full animate-pulse bg-gray-200 rounded" />
+      </div>
+
+      {/* Guests field skeleton */}
+      <div>
+        <div className="mb-2 h-4 w-24 animate-pulse bg-gray-200 rounded" />
+        <div className="flex items-center justify-center space-x-4 space-x-reverse">
+          <div className="h-10 w-10 animate-pulse bg-gray-200 rounded-full" />
+          <div className="h-10 w-16 animate-pulse bg-gray-200 rounded" />
+          <div className="h-10 w-10 animate-pulse bg-gray-200 rounded-full" />
+        </div>
+        <div className="flex justify-center gap-2 mt-3">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <div
+              key={i}
+              className="h-8 w-8 animate-pulse bg-gray-200 rounded-full"
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Blessing field skeleton */}
+      <div>
+        <div className="mb-2 h-4 w-16 animate-pulse bg-gray-200 rounded" />
+        <div className="h-20 w-full animate-pulse bg-gray-200 rounded" />
+      </div>
+
+      {/* Submit button skeleton */}
+      <div className="h-12 w-full animate-pulse bg-gray-200 rounded" />
+    </div>
+  );
+}
+
 // Predefined skeleton components
-export function SkeletonText({ lines = 1, className = "" }: { lines?: number; className?: string }) {
+export function SkeletonText({
+  lines = 1,
+  className = "",
+}: {
+  lines?: number;
+  className?: string;
+}) {
   return (
     <div className={`space-y-2 ${className}`}>
       {Array.from({ length: lines }).map((_, i) => (
@@ -52,7 +93,9 @@ export function SkeletonText({ lines = 1, className = "" }: { lines?: number; cl
 
 export function SkeletonCard({ className = "" }: { className?: string }) {
   return (
-    <div className={`bg-white/10 backdrop-blur-md rounded-3xl shadow-pink-200 p-8 ${className}`}>
+    <div
+      className={`bg-white/10 backdrop-blur-md rounded-3xl shadow-pink-200 p-8 ${className}`}
+    >
       <div className="space-y-6">
         <div className="text-center">
           <Skeleton className="w-16 h-16 mx-auto mb-4 rounded-full" />
@@ -71,27 +114,18 @@ export function SkeletonCard({ className = "" }: { className?: string }) {
 
 export function SkeletonButton({ className = "" }: { className?: string }) {
   return (
-    <Skeleton
-      height="56px"
-      className={`w-full rounded-xl ${className}`}
-    />
+    <Skeleton height="56px" className={`w-full rounded-xl ${className}`} />
   );
 }
 
 export function SkeletonInput({ className = "" }: { className?: string }) {
   return (
-    <Skeleton
-      height="48px"
-      className={`w-full rounded-xl ${className}`}
-    />
+    <Skeleton height="48px" className={`w-full rounded-xl ${className}`} />
   );
 }
 
 export function SkeletonTextarea({ className = "" }: { className?: string }) {
   return (
-    <Skeleton
-      height="120px"
-      className={`w-full rounded-xl ${className}`}
-    />
+    <Skeleton height="120px" className={`w-full rounded-xl ${className}`} />
   );
 }

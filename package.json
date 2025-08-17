@@ -18,7 +18,9 @@
     "test:acceptance": "bash scripts/run-acceptance-tests.sh",
     "test:rsvp": "npm run test:acceptance",
     "test:rsvp:pw": "playwright test tests/rsvp-integration.spec.ts",
-    "test:rsvp:headed": "npx playwright test tests/rsvp-integration.spec.ts --headed"
+    "test:rsvp:headed": "npx playwright test tests/rsvp-integration.spec.ts --headed",
+    "test:rsvp:bootstrap": "playwright test tests/rsvp-bootstrap.spec.ts",
+    "test:rsvp:bootstrap:headed": "playwright test tests/rsvp-bootstrap.spec.ts --headed"
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^7.0.0",

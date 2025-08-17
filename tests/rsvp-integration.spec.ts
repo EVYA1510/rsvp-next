@@ -38,14 +38,14 @@ test.describe("RSVP Integration", () => {
     await page.addInitScript(
       ([name]) => {
         localStorage.setItem(
-          "rsvp_full_data",
+          "rsvp_cache_data",
           JSON.stringify({
             reportId: "rsvp_mock_12345",
             name: name,
             status: "no",
             guests: 0,
             blessing: "",
-            savedAt: Date.now(),
+            updatedAt: Date.now(),
           })
         );
       },
